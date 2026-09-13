@@ -1,0 +1,45 @@
+name: Game File Generator
+
+on:
+  schedule:
+  - cron: "0 0 * * *"
+  
+  workflow_dispatch:
+
+jobs:
+  clone-and-update:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # Checkout current repo
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Check out bibordle-bibles
+        uses: actions/checkout@v4
+        with:
+          repository: FXZFun/bibordle-bibles
+          token: ${{ secrets.BIBORDLE_BIBLES_PAT }}
+          path: bibordle-bibles
+
+      - name: Generate tomorrow's file
+        run: php generator.php
+
+      - name: Remove bibordle-bibles
+        run: rm bibordle-bibles -rf
+
+      - name: Commit changes
+        run: |
+          git config user.name "Bibordle"
+          git config user.email "bibordle@fxzfun.com"
+          git add .
+          git commit -m "[bot] update game files" || echo "No changes to commit"
+          git reset $(git commit-tree "HEAD^{tree}" -m "[bot] update game files")
+          git push --force
